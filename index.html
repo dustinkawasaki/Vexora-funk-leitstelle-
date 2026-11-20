@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1424">
+<title>VEXORA | Leitstelle</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1424;--panel:#121f33;--panel2:#172840;--line:#263a55;--text:#edf4ff;--muted:#91a5bf;--blue:#3b82f6;--green:#22c55e;--amber:#f59e0b;--red:#ef4444}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#172b48 0,transparent 35%),var(--bg);color:var(--text);font:15px system-ui,Segoe UI,sans-serif}
+header{height:70px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--line);background:#0b1424eF;position:sticky;top:0;z-index:5}
+.brand{font-weight:800;letter-spacing:1.5px}.brand span{color:#60a5fa}.sub{color:var(--muted);font-size:12px}
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 70px)}aside{padding:22px 14px;border-right:1px solid var(--line)}nav button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--muted);padding:12px;border-radius:9px;margin:4px 0;font:inherit;cursor:pointer}nav button.active,nav button:hover{background:var(--panel2);color:white}
+main{padding:26px;max-width:1500px;width:100%;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}h1{margin:0 0 5px;font-size:26px}.muted{color:var(--muted)}.notice{margin:18px 0;padding:11px 14px;border:1px solid #785b22;background:#3a2b123d;border-radius:10px;color:#f8d68c;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0}.card{background:linear-gradient(145deg,var(--panel),#101b2d);border:1px solid var(--line);border-radius:14px;padding:17px}.stat{font-size:28px;font-weight:750;margin-top:7px}.section{margin-top:22px}.sectionhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px}h2{font-size:17px;margin:0}
+button.primary{background:var(--blue);border:0;color:white;border-radius:9px;padding:10px 14px;font-weight:650;cursor:pointer}button.secondary{background:#1a2b43;border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 12px;cursor:pointer}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);font-size:13px}th{color:var(--muted);font-weight:600}.pill{display:inline-block;padding:4px 8px;border-radius:20px;background:#233650;color:#cfe1fa;font-size:11px}.empty{padding:25px;text-align:center;color:var(--muted)}
+input,select{width:100%;background:#0b1729;border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--text);font:inherit}label{display:block;color:var(--muted);font-size:12px;margin:12px 0 6px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:16px;z-index:10}.modal.open{display:flex}.dialog{width:min(520px,100%);background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:22px}.dialogfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.page{display:none}.page.active{display:block}.unitlist{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.unit{background:var(--panel);border:1px solid var(--line);padding:14px;border-radius:12px}.unit strong{display:block;margin-bottom:5px}.radio{background:#081321;border:1px solid var(--line);border-radius:12px;padding:16px;min-height:190px}.radiofeed{font-family:ui-monospace,monospace;color:#a9c8ee;font-size:13px;line-height:1.8}
+@media(max-width:800px){.layout{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line);padding:8px}nav{display:flex;overflow:auto}nav button{white-space:nowrap;width:auto}.grid{grid-template-columns:repeat(2,1fr)}main{padding:18px 13px}header{padding:0 15px}}
+@media(max-width:450px){.grid{grid-template-columns:1fr 1fr}.formgrid{grid-template-columns:1fr}th,td{padding:9px 5px;font-size:12px}}
+</style>
+</head>
+<body>
+<header><div><div class="brand">VEXORA <span>LEITSTELLE</span></div><div class="sub">VEXORA RP · Leitstellen-Simulation</div></div><span class="pill">DEMO-MODUS</span></header>
+<div class="layout">
+<aside><nav>
+<button class="active" data-page="dashboard">▦ Übersicht</button><button data-page="incidents">⚑ Einsätze</button><button data-page="units">◈ Fahrzeuge & Einheiten</button><button data-page="radio">⌁ Funkübersicht</button>
+</nav><p class="sub" style="padding:12px">Version 0.1 · VEXORA RP</p></aside>
+<main>
+<section id="dashboard" class="page active">
+<div class="top"><div><h1>Leitstellenübersicht</h1><div class="muted">Willkommen in der VEXORA-RP-Leitstelle.</div></div><button class="primary" onclick="openIncident()">+ Neuer Einsatz</button></div>
+<div class="notice">Nur für fiktives Roblox-Rollenspiel. Keine Verbindung zu echten Leitstellen, Behörden oder Notrufsystemen.</div>
+<div class="grid"><div class="card"><div class="muted">Offene Einsätze</div><div class="stat" id="statIncidents">0</div></div><div class="card"><div class="muted">Verfügbare Einheiten</div><div class="stat" id="statFree">0</div></div><div class="card"><div class="muted">Im Einsatz</div><div class="stat" id="statBusy">0</div></div><div class="card"><div class="muted">Einheiten gesamt</div><div class="stat" id="statUnits">0</div></div></div>
+<div class="section"><div class="sectionhead"><h2>Aktuelle Einsätze</h2><button class="secondary" onclick="showPage('incidents')">Alle anzeigen</button></div><div class="card" id="recentIncidents"></div></div>
+</section>
+<section id="incidents" class="page"><div class="top"><div><h1>Einsatzverwaltung</h1><div class="muted">Einsätze erfassen und Einheiten disponieren.</div></div><button class="primary" onclick="openIncident()">+ Einsatz anlegen</button></div><div class="notice">Die Einsatzdaten sind lokale Demo-Daten in diesem Browser.</div><div class="card section" id="incidentTable"></div></section>
+<section id="units" class="page"><div class="top"><div><h1>Fahrzeuge & Einheiten</h1><div class="muted">Status der RP-Einheiten verwalten.</div></div><button class="primary" onclick="openUnit()">+ Einheit hinzufügen</button></div><div class="section unitlist" id="unitList"></div></section>
+<section id="radio" class="page"><h1>Funkübersicht</h1><div class="muted">Lokale Funknotizen – kein echter Sprachfunk.</div><div class="notice">Diese Ansicht simuliert nur eine Funkübersicht. Es gibt noch keine Live-Sprachübertragung oder gemeinsame Echtzeit-Synchronisierung.</div><div class="radio"><div class="radiofeed" id="radioFeed">[SYSTEM] VEXORA-RP-Funkübersicht gestartet.<br>[INFO] Lokaler Demo-Modus aktiv.</div></div></section>
+</main></div>
+<div class="modal" id="incidentModal"><div class="dialog"><h2>Neuen Einsatz erstellen</h2><form id="incidentForm"><label>Einsatzstichwort</label><input name="type" required placeholder="z. B. Verkehrsunfall"><div class="formgrid"><div><label>Adresse / Ort (RP)</label><input name="address" required placeholder="Straße, Stadtteil"></div><div><label>Priorität</label><select name="priority"><option>Normal</option><option>Hoch</option><option>Dringend</option></select></div></div><label>Abteilung</label><select name="department"><option>Polizei</option><option>Feuerwehr</option><option>Rettungsdienst</option></select><div class="dialogfoot"><button type="button" class="secondary" onclick="closeModal('incidentModal')">Abbrechen</button><button class="primary">Einsatz speichern</button></div></form></div></div>
+<div class="modal" id="unitModal"><div class="dialog"><h2>Einheit hinzufügen</h2><form id="unitForm"><label>Funkrufname</label><input name="name" required placeholder="z. B. POL-1/ da"><label>Abteilung</label><select name="department"><option>Polizei</option><option>Feuerwehr</option><option>Rettungsdienst</option></select><label>Status</label><select name="status"><option>1 – Frei (über Funk)</option><option>2 – Einsatzbereit</option><option>3 – Einsatz übernommen</option><option>4 – Am Einsatzort</option><option>5 – Sprechwunsch</option><option>6 – Nicht verfügbar</option></select><div class="dialogfoot"><button type="button" class="secondary" onclick="closeModal('unitModal')">Abbrechen</button><button class="primary">Einheit speichern</button></div></form></div></div>
+<script>
+const $=s=>document.querySelector(s);let incidents=JSON.parse(localStorage.getItem('vx_incidents')||'[]');let units=JSON.parse(localStorage.getItem('vx_units')||'[]');
+if(!units.length){units=[{name:'POL-1/1',department:'Polizei',status:'2 – Einsatzbereit'},{name:'FW-1/1',department:'Feuerwehr',status:'2 – Einsatzbereit'},{name:'RD-1/1',department:'Rettungsdienst',status:'2 – Einsatzbereit'}];save()}
+function save(){localStorage.setItem('vx_incidents',JSON.stringify(incidents));localStorage.setItem('vx_units',JSON.stringify(units));render()}
+function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===id))}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+function openIncident(){$('#incidentModal').classList.add('open')}function openUnit(){$('#unitModal').classList.add('open')}function closeModal(id){$('#'+id).classList.remove('open')}
+$('#incidentForm').onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));incidents.unshift({...d,id:Date.now(),created:new Date().toLocaleString('de-DE')});e.target.reset();closeModal('incidentModal');save()};
+$('#unitForm').onsubmit=e=>{e.preventDefault();units.push(Object.fromEntries(new FormData(e.target)));e.target.reset();closeModal('unitModal');save()};
+function statusSelect(i){return '<select onchange="units['+i+'].status=this.value;save()">'+['1 – Frei (über Funk)','2 – Einsatzbereit','3 – Einsatz übernommen','4 – Am Einsatzort','5 – Sprechwunsch','6 – Nicht verfügbar'].map(s=>'<option '+(units[i].status===s?'selected':'')+'>'+s+'</option>').join('')+'</select>'}
+function render(){const active=incidents.length;$('#statIncidents').textContent=active;$('#statUnits').textContent=units.length;$('#statFree').textContent=units.filter(u=>u.status.startsWith('1')||u.status.startsWith('2')).length;$('#statBusy').textContent=units.filter(u=>u.status.startsWith('3')||u.status.startsWith('4')).length;
+const rows=incidents.map(x=>'<tr><td>#'+x.id.toString().slice(-5)+'</td><td>'+esc(x.type)+'</td><td>'+esc(x.address)+'</td><td>'+esc(x.department)+'</td><td><span class="pill">'+esc(x.priority)+'</span></td><td>'+x.created+'</td><td><button class="secondary" onclick="removeIncident('+x.id+')">Abschließen</button></td></tr>').join('');
+const table=rows?'<table><thead><tr><th>Nr.</th><th>Stichwort</th><th>Ort</th><th>Abteilung</th><th>Priorität</th><th>Erstellt</th><th>Aktion</th></tr></thead><tbody>'+rows+'</tbody></table>':'<div class="empty">Noch keine Einsätze vorhanden.</div>';
+$('#incidentTable').innerHTML=table;$('#recentIncidents').innerHTML=incidents.length?table:'<div class="empty">Aktuell keine offenen Einsätze.</div>';
+$('#unitList').innerHTML=units.map((u,i)=>'<div class="unit"><strong>'+esc(u.name)+'</strong><div class="muted">'+esc(u.department)+'</div><label>Status ändern</label>'+statusSelect(i)+'</div>').join('')||'<div class="empty">Noch keine Einheiten.</div>'}
+function removeIncident(id){incidents=incidents.filter(x=>x.id!==id);save()}function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}render();
+</script>
+</body></html>
