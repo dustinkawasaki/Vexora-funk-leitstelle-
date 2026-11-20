@@ -19,6 +19,45 @@ input,select{width:100%;background:#0b1729;border:1px solid var(--line);border-r
 .page{display:none}.page.active{display:block}.unitlist{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.unit{background:var(--panel);border:1px solid var(--line);padding:14px;border-radius:12px}.unit strong{display:block;margin-bottom:5px}.radio{background:#081321;border:1px solid var(--line);border-radius:12px;padding:16px;min-height:190px}.radiofeed{font-family:ui-monospace,monospace;color:#a9c8ee;font-size:13px;line-height:1.8}
 @media(max-width:800px){.layout{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line);padding:8px}nav{display:flex;overflow:auto}nav button{white-space:nowrap;width:auto}.grid{grid-template-columns:repeat(2,1fr)}main{padding:18px 13px}header{padding:0 15px}}
 @media(max-width:450px){.grid{grid-template-columns:1fr 1fr}.formgrid{grid-template-columns:1fr}th,td{padding:9px 5px;font-size:12px}}
+
+/* App-Ansicht und Funkgerät */
+@media(max-width:600px){
+ body{background:#08111f;padding-bottom:74px}
+ header{height:62px;padding:0 15px}
+ header .brand{font-size:14px}
+ .layout{display:block;min-height:calc(100vh - 62px)}
+ aside{position:fixed;z-index:20;bottom:0;left:0;right:0;height:66px;padding:5px 8px calc(5px + env(safe-area-inset-bottom));background:#0b1424;border-top:1px solid var(--line);border-bottom:0}
+ nav{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;height:100%;overflow:visible}
+ nav button{font-size:10px;text-align:center;padding:7px 2px;margin:0;white-space:normal;line-height:1.25;border-radius:9px}
+ main{padding:17px 12px}
+ h1{font-size:22px}
+ .grid{gap:8px;margin:14px 0}
+ .card{padding:13px;border-radius:13px}
+ .stat{font-size:24px}
+ .top{align-items:flex-start}
+ .top>.primary{padding:10px;font-size:12px}
+ .section{margin-top:17px}
+ .unitlist{grid-template-columns:1fr}
+ .unit{padding:15px}
+ .unit select{min-height:46px;font-size:14px}
+ .radio{padding:12px}
+ table{min-width:620px}
+ #incidentTable,#recentIncidents{overflow-x:auto}
+ .dialog{padding:17px;max-height:90vh;overflow:auto}
+}
+.radio-device{max-width:390px;margin:18px auto;background:linear-gradient(145deg,#273449,#111c2c 55%,#080f19);border:2px solid #526174;border-radius:26px;padding:18px;box-shadow:0 18px 35px #0008,inset 0 1px #ffffff30}
+.radio-top{display:flex;justify-content:space-between;align-items:center;color:#b9c9dc;font-size:11px;letter-spacing:2px;font-weight:800}
+.radio-screen{margin:16px 0;background:#9fb89b;color:#17251c;border:5px solid #080e16;border-radius:9px;padding:13px;font-family:ui-monospace,monospace;box-shadow:inset 0 0 14px #263c2b}
+.radio-screen .channel{font-size:12px;font-weight:bold;letter-spacing:1px}
+.radio-screen .frequency{font-size:25px;font-weight:900;margin:7px 0}
+.radio-screen .ready{font-size:11px}
+.radio-controls{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.radio-knob{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#77869a,#1a2636 65%);border:3px solid #080f18;box-shadow:0 3px 5px #0009}
+.ptt{background:#b52e32;border:2px solid #e46c70;color:white;border-radius:9px;padding:12px 17px;font-weight:800;letter-spacing:1px;box-shadow:0 4px #641b20;cursor:pointer}
+.ptt:active{transform:translateY(2px);box-shadow:0 2px #641b20}
+.radio-speaker{height:36px;flex:1;border-radius:5px;background:repeating-linear-gradient(0deg,#111a27 0 2px,#435166 2px 3px);opacity:.8}
+.radio-hint{text-align:center;color:var(--muted);font-size:11px;margin-top:14px}
+.status-toast{color:#a7f3d0;font-size:12px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -36,7 +75,14 @@ input,select{width:100%;background:#0b1729;border:1px solid var(--line);border-r
 </section>
 <section id="incidents" class="page"><div class="top"><div><h1>Einsatzverwaltung</h1><div class="muted">Einsätze erfassen und Einheiten disponieren.</div></div><button class="primary" onclick="openIncident()">+ Einsatz anlegen</button></div><div class="notice">Die Einsatzdaten sind lokale Demo-Daten in diesem Browser.</div><div class="card section" id="incidentTable"></div></section>
 <section id="units" class="page"><div class="top"><div><h1>Fahrzeuge & Einheiten</h1><div class="muted">Status der RP-Einheiten verwalten.</div></div><button class="primary" onclick="openUnit()">+ Einheit hinzufügen</button></div><div class="section unitlist" id="unitList"></div></section>
-<section id="radio" class="page"><h1>Funkübersicht</h1><div class="muted">Lokale Funknotizen – kein echter Sprachfunk.</div><div class="notice">Diese Ansicht simuliert nur eine Funkübersicht. Es gibt noch keine Live-Sprachübertragung oder gemeinsame Echtzeit-Synchronisierung.</div><div class="radio"><div class="radiofeed" id="radioFeed">[SYSTEM] VEXORA-RP-Funkübersicht gestartet.<br>[INFO] Lokaler Demo-Modus aktiv.</div></div></section>
+<section id="radio" class="page"><h1>Funkübersicht</h1><div class="muted">Lokale Funknotizen – kein echter Sprachfunk.</div><div class="notice">Diese Ansicht simuliert nur eine Funkübersicht. Es gibt noch keine Live-Sprachübertragung oder gemeinsame Echtzeit-Synchronisierung.</div><div class="radio-device">
+ <div class="radio-top"><span>VEXORA RADIO</span><span>● POWER</span></div>
+ <div class="radio-screen"><div class="channel">VEXORA RP · KANAL 1</div><div class="frequency">VXR 01</div><div class="ready" id="radioScreenText">BEREIT · EMPFANG OK</div></div>
+ <div class="radio-controls"><div class="radio-knob" aria-label="Lautstärke-Drehregler"></div><div class="radio-speaker"></div><button class="ptt" id="pttButton" type="button">FUNK</button></div>
+ <div class="radio-hint">Fiktives RP-Funkgerät · keine echte Funkverbindung</div>
+ <div class="status-toast" id="radioStatus">System bereit.</div>
+ </div>
+ <div class="radio card"><div class="radiofeed" id="radioFeed">[SYSTEM] VEXORA-RP-Funkgerät gestartet.<br>[INFO] Lokaler Demo-Modus aktiv.</div></div></section>
 </main></div>
 <div class="modal" id="incidentModal"><div class="dialog"><h2>Neuen Einsatz erstellen</h2><form id="incidentForm"><label>Einsatzstichwort</label><input name="type" required placeholder="z. B. Verkehrsunfall"><div class="formgrid"><div><label>Adresse / Ort (RP)</label><input name="address" required placeholder="Straße, Stadtteil"></div><div><label>Priorität</label><select name="priority"><option>Normal</option><option>Hoch</option><option>Dringend</option></select></div></div><label>Abteilung</label><select name="department"><option>Polizei</option><option>Feuerwehr</option><option>Rettungsdienst</option></select><div class="dialogfoot"><button type="button" class="secondary" onclick="closeModal('incidentModal')">Abbrechen</button><button class="primary">Einsatz speichern</button></div></form></div></div>
 <div class="modal" id="unitModal"><div class="dialog"><h2>Einheit hinzufügen</h2><form id="unitForm"><label>Funkrufname</label><input name="name" required placeholder="z. B. POL-1/ da"><label>Abteilung</label><select name="department"><option>Polizei</option><option>Feuerwehr</option><option>Rettungsdienst</option></select><label>Status</label><select name="status"><option>1 – Frei (über Funk)</option><option>2 – Einsatzbereit</option><option>3 – Einsatz übernommen</option><option>4 – Am Einsatzort</option><option>5 – Sprechwunsch</option><option>6 – Nicht verfügbar</option></select><div class="dialogfoot"><button type="button" class="secondary" onclick="closeModal('unitModal')">Abbrechen</button><button class="primary">Einheit speichern</button></div></form></div></div>
@@ -49,12 +95,15 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showPage(b.data
 function openIncident(){$('#incidentModal').classList.add('open')}function openUnit(){$('#unitModal').classList.add('open')}function closeModal(id){$('#'+id).classList.remove('open')}
 $('#incidentForm').onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));incidents.unshift({...d,id:Date.now(),created:new Date().toLocaleString('de-DE')});e.target.reset();closeModal('incidentModal');save()};
 $('#unitForm').onsubmit=e=>{e.preventDefault();units.push(Object.fromEntries(new FormData(e.target)));e.target.reset();closeModal('unitModal');save()};
-function statusSelect(i){return '<select onchange="units['+i+'].status=this.value;save()">'+['1 – Frei (über Funk)','2 – Einsatzbereit','3 – Einsatz übernommen','4 – Am Einsatzort','5 – Sprechwunsch','6 – Nicht verfügbar'].map(s=>'<option '+(units[i].status===s?'selected':'')+'>'+s+'</option>').join('')+'</select>'}
+function playStatusBeep(){try{const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return;const ctx=new AudioCtx();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(880,ctx.currentTime);osc.frequency.setValueAtTime(660,ctx.currentTime+0.11);gain.gain.setValueAtTime(0.0001,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.16,ctx.currentTime+0.015);gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.24);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+0.25);osc.onended=()=>ctx.close()}catch(e){}}
+function changeStatus(i,value){units[i].status=value;playStatusBeep();$('#radioStatus').textContent='PIEP · '+units[i].name+' → '+value;$('#radioScreenText').textContent='STATUS AKTUALISIERT';const feed=$('#radioFeed');feed.innerHTML+='\\n[STATUS] '+esc(units[i].name)+' → '+esc(value);save()}
+function statusSelect(i){return '<select aria-label="Status von '+esc(units[i].name)+'" onchange="changeStatus('+i+',this.value)">'+['1 – Frei (über Funk)','2 – Einsatzbereit','3 – Einsatz übernommen','4 – Am Einsatzort','5 – Sprechwunsch','6 – Nicht verfügbar'].map(s=>'<option '+(units[i].status===s?'selected':'')+'>'+s+'</option>').join('')+'</select>'}
 function render(){const active=incidents.length;$('#statIncidents').textContent=active;$('#statUnits').textContent=units.length;$('#statFree').textContent=units.filter(u=>u.status.startsWith('1')||u.status.startsWith('2')).length;$('#statBusy').textContent=units.filter(u=>u.status.startsWith('3')||u.status.startsWith('4')).length;
 const rows=incidents.map(x=>'<tr><td>#'+x.id.toString().slice(-5)+'</td><td>'+esc(x.type)+'</td><td>'+esc(x.address)+'</td><td>'+esc(x.department)+'</td><td><span class="pill">'+esc(x.priority)+'</span></td><td>'+x.created+'</td><td><button class="secondary" onclick="removeIncident('+x.id+')">Abschließen</button></td></tr>').join('');
 const table=rows?'<table><thead><tr><th>Nr.</th><th>Stichwort</th><th>Ort</th><th>Abteilung</th><th>Priorität</th><th>Erstellt</th><th>Aktion</th></tr></thead><tbody>'+rows+'</tbody></table>':'<div class="empty">Noch keine Einsätze vorhanden.</div>';
 $('#incidentTable').innerHTML=table;$('#recentIncidents').innerHTML=incidents.length?table:'<div class="empty">Aktuell keine offenen Einsätze.</div>';
 $('#unitList').innerHTML=units.map((u,i)=>'<div class="unit"><strong>'+esc(u.name)+'</strong><div class="muted">'+esc(u.department)+'</div><label>Status ändern</label>'+statusSelect(i)+'</div>').join('')||'<div class="empty">Noch keine Einheiten.</div>'}
+$('#pttButton')?.addEventListener('click',()=>{const t=$('#radioStatus');t.textContent='FUNK-TASTE GEDRÜCKT · nur lokale Simulation';$('#radioScreenText').textContent='SENDET (DEMO)';playStatusBeep();setTimeout(()=>{$('#radioScreenText').textContent='BEREIT · EMPFANG OK';t.textContent='System bereit.'},900)});
 function removeIncident(id){incidents=incidents.filter(x=>x.id!==id);save()}function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}render();
 </script>
 </body></html>
