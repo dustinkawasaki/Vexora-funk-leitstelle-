@@ -164,4 +164,257 @@ document.querySelectorAll('[data-radio-tab]').forEach(b=>b.addEventListener('cli
 const ptt=$('#pttButton');let pttDown=false;function startPtt(e){e.preventDefault();if(pttDown)return;pttDown=true;ptt.classList.add('transmitting');ptt.textContent='● SENDEN';$('#lcdBottom').textContent='SENDEN AKTIV';radioNotice('Sprechtaste gedrückt halten');playPttClick(true)}function stopPtt(){if(!pttDown)return;pttDown=false;ptt.classList.remove('transmitting');ptt.textContent='🎙 Halten zum Sprechen';$('#lcdBottom').textContent='KANAL FREI';radioNotice('Knopf gedrückt halten zum Sprechen');playPttClick(false)}ptt.addEventListener('pointerdown',startPtt);['pointerup','pointerleave','pointercancel'].forEach(ev=>ptt.addEventListener(ev,stopPtt));
 function removeIncident(id){incidents=incidents.filter(x=>x.id!==id);save()}function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}render();
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* VEXORA RP: gemeinsame Daten und Echtzeit-Synchronisierung */
+const VX_SUPABASE_URL = 'https://ivffljolgvfeqcokpzxt.supabase.co';
+const VX_SUPABASE_KEY = 'sb_publishable_NyQHESHQGOi6h3ugS79rhA_u5cycVE1';
+const vxDb = window.supabase.createClient(VX_SUPABASE_URL, VX_SUPABASE_KEY);
+const vxSessionId = 'vx-' + (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now());
+let vxDispatcherOwned = false;
+let vxDbChannel = null;
+let vxPresenceChannel = null;
+let vxConnectionReady = false;
+
+function vxSetConnection(ok, message) {
+  vxConnectionReady = !!ok;
+  document.querySelectorAll('.connected').forEach(el => {
+    if (el.closest('.channel-head')) el.textContent = ok ? 'Live verbunden' : 'Offline';
+  });
+  const pill = document.querySelector('header .pill');
+  if (pill) pill.textContent = ok ? 'LIVE · RP' : 'OFFLINE';
+  const state = document.getElementById('radioStatus');
+  if (state && message) state.textContent = message;
+}
+function vxIncidentFromRow(r) {
+  return {id:Number(r.id),number:r.number,type:r.type,caller:r.caller,address:r.address,department:r.department,priority:r.priority,created:new Date(r.created_at).toLocaleString('de-DE'),status:r.status};
+}
+function vxUpsertIncident(row) {
+  const item = vxIncidentFromRow(row);
+  const i = incidents.findIndex(x => Number(x.id) === item.id);
+  if (i < 0) incidents.unshift(item); else incidents[i] = {...incidents[i],...item};
+}
+function vxUnitFromRow(r) { return {name:r.name,department:r.department,status:r.status}; }
+function vxUpsertUnit(row) {
+  const item = vxUnitFromRow(row);
+  const i = units.findIndex(x => x.name === item.name);
+  if (i < 0) units.push(item); else units[i] = item;
+}
+function save(){ render(); }
+function render(){
+  const open = incidents.filter(x => x.status !== 'Abgeschlossen');
+  const free = units.filter(u => u.status.startsWith('1') || u.status.startsWith('2')).length;
+  const busy = units.filter(u => u.status.startsWith('3') || u.status.startsWith('4')).length;
+  $('#statIncidents').textContent = open.length;
+  $('#statUnits').textContent = units.length;
+  $('#statFree').textContent = free;
+  $('#statBusy').textContent = busy;
+  const rows = open.map(x => '<tr><td>'+esc(x.number||('#'+x.id))+'</td><td>'+esc(x.type)+'</td><td>'+esc(x.caller||'—')+'</td><td>'+esc(x.address)+'</td><td>'+esc(x.department)+'</td><td><span class="pill">'+esc(x.priority)+'</span></td><td>'+esc(x.created||'')+'</td><td><button class="secondary" onclick="removeIncident('+x.id+')">Abschließen</button></td></tr>').join('');
+  const table = rows ? '<table><thead><tr><th>Nr.</th><th>Stichwort</th><th>Melder</th><th>Ort</th><th>Abteilung</th><th>Priorität</th><th>Erstellt</th><th>Aktion</th></tr></thead><tbody>'+rows+'</tbody></table>' : '<div class="empty">Noch keine offenen Einsätze vorhanden.</div>';
+  $('#incidentTable').innerHTML = table;
+  $('#recentIncidents').innerHTML = table;
+  $('#unitList').innerHTML = units.map((u,i) => '<div class="unit"><strong>'+esc(u.name)+'</strong><div class="muted">'+esc(u.department)+'</div><label>Status ändern</label><select aria-label="Status von '+esc(u.name)+'" onchange="changeStatus('+i+',this.value)">'+['1 – Frei (über Funk)','2 – Einsatzbereit','3 – Einsatz übernommen','4 – Am Einsatzort','5 – Sprechwunsch','6 – Nicht verfügbar'].map(s=>'<option '+(u.status===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>').join('') || '<div class="empty">Noch keine Einheiten.</div>';
+}
+function vxShowMessage(row){
+  const p = row.payload || {};
+  if(row.kind === 'notfall' && p.item){
+    const item = p.item;
+    playDispatchAlarm();
+    showDispatchAlert(item);
+  } else if(row.kind === 'dispatch'){
+    const msg = p.message || 'Alarmierung der Leitstelle';
+    const no = p.number || 'ALARM';
+    radioNotice('ALARM VON LEITSTELLE · '+msg+' · '+no);
+    $('#lcdBottom').textContent='ALARM · '+no;
+    $('#lcdStatus').textContent=msg;
+    playDispatchAlarm();
+    const feed=$('#dispatchFeed');
+    if(feed) feed.textContent='Alarmierung: '+msg+' · '+no;
+  } else if(row.kind === 'status'){
+    radioNotice('STATUS · '+(p.unit||'Einheit')+' · '+(p.status||'geändert'));
+  }
+}
+async function vxLoad(){
+  try {
+    const [ir, ur] = await Promise.all([
+      vxDb.from('vx_incidents').select('*').order('created_at',{ascending:false}).limit(200),
+      vxDb.from('vx_units').select('*').order('name')
+    ]);
+    if(ir.error) throw ir.error;
+    if(ur.error) throw ur.error;
+    incidents = (ir.data||[]).map(vxIncidentFromRow);
+    units = (ur.data||[]).map(vxUnitFromRow);
+    if(!units.length){
+      const defaults = [
+        {name:'POL-1/1',department:'Polizei',status:'2 – Einsatzbereit'},
+        {name:'FW-1/1',department:'Feuerwehr',status:'2 – Einsatzbereit'},
+        {name:'RD-1/1',department:'Rettungsdienst',status:'2 – Einsatzbereit'}
+      ];
+      const seed = await vxDb.from('vx_units').upsert(defaults,{onConflict:'name'}).select();
+      if(seed.error) throw seed.error;
+      units = (seed.data||[]).map(vxUnitFromRow);
+    }
+    render();
+    vxSetConnection(true,'Mit VEXORA-RP-Datenbank verbunden.');
+    vxSubscribe();
+    vxRefreshDispatcher();
+  } catch(err) {
+    console.error('VEXORA Datenbank:',err);
+    vxSetConnection(false,'Datenbankverbindung fehlgeschlagen: '+(err.message||'Bitte später erneut versuchen.'));
+    radioNotice('Offline – Änderungen können nicht synchronisiert werden.');
+  }
+}
+function vxSubscribe(){
+  if(vxDbChannel) vxDb.removeChannel(vxDbChannel);
+  vxDbChannel = vxDb.channel('vexora-rp-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'vx_incidents'},payload=>{
+      if(payload.eventType==='DELETE') incidents=incidents.filter(x=>Number(x.id)!==Number(payload.old.id));
+      else {
+        const exists=incidents.some(x=>Number(x.id)===Number(payload.new.id));
+        vxUpsertIncident(payload.new);
+        if(payload.eventType==='INSERT' && !exists && (payload.new.priority==='SOFORT' || payload.new.type==='PANIKALARM')) {
+          playDispatchAlarm();
+          showDispatchAlert(vxIncidentFromRow(payload.new));
+        }
+      }
+      render();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'vx_units'},payload=>{
+      if(payload.eventType==='DELETE') units=units.filter(x=>x.name!==payload.old.name);
+      else vxUpsertUnit(payload.new);
+      render();
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'vx_radio_messages'},payload=>vxShowMessage(payload.new))
+    .on('postgres_changes',{event:'*',schema:'public',table:'vx_dispatcher'},()=>vxRefreshDispatcher())
+    .subscribe(status=>{
+      if(status==='SUBSCRIBED') vxSetConnection(true,'Echtzeit-Funk ist verbunden.');
+      if(status==='CHANNEL_ERROR' || status==='TIMED_OUT') vxSetConnection(false,'Echtzeitverbindung unterbrochen.');
+    });
+  vxPresenceChannel = vxDb.channel('vexora-rp-presence',{config:{presence:{key:vxSessionId}}});
+  vxPresenceChannel.on('presence',{event:'sync'},()=>{
+    const count=Object.keys(vxPresenceChannel.presenceState()).length;
+    const peopleTab=document.querySelector('[data-radio-tab="people"] i');
+    if(peopleTab) peopleTab.textContent=String(count);
+  }).subscribe(async status=>{
+    if(status==='SUBSCRIBED') await vxPresenceChannel.track({online_at:new Date().toISOString(),role:'rp-client'});
+  });
+}
+function nextIncidentNumber(){return 'VX-'+new Date().getFullYear()+'-'+Date.now().toString().slice(-6)+'-'+Math.random().toString(36).slice(2,4).toUpperCase();}
+async function openEmergency(){
+  if(isDispatcher()){radioNotice('Die Leitstelle kann keinen eigenen Melder-Notfall auslösen.');return;}
+  const caller=localStorage.getItem('vx_dienstnummer') || (units[0]&&units[0].name) || 'OHNE-DIENSTNUMMER';
+  const unit=units.find(u=>u.name===caller)||units[0]||{};
+  const number=nextIncidentNumber();
+  const item={number,type:'PANIKALARM',caller,department:unit.department||'Unbekannt',priority:'SOFORT',address:'Standort nicht übermittelt',status:'Offen'};
+  const {data,error}=await vxDb.from('vx_incidents').insert(item).select().single();
+  if(error){radioNotice('Notfall konnte nicht gesendet werden: '+error.message);return;}
+  const mapped=vxIncidentFromRow(data);
+  vxUpsertIncident(data);
+  await vxDb.from('vx_radio_messages').insert({kind:'notfall',payload:{item:mapped}});
+  playDispatchAlarm();
+  render();
+  radioNotice('NOTFALL GESENDET · '+number+' · '+caller);
+}
+async function changeStatus(i,value){
+  const unit=units[i]; if(!unit)return;
+  const {error}=await vxDb.from('vx_units').update({status:value,updated_at:new Date().toISOString()}).eq('name',unit.name);
+  if(error){radioNotice('Status konnte nicht gespeichert werden: '+error.message);return;}
+  unit.status=value; playStatusBeep(String(value).charAt(0)); render();
+  await vxDb.from('vx_radio_messages').insert({kind:'status',payload:{unit:unit.name,status:value}});
+  radioNotice('STATUS GESENDET · '+unit.name+' → '+value);
+}
+async function removeIncident(id){
+  const {error}=await vxDb.from('vx_incidents').update({status:'Abgeschlossen'}).eq('id',id);
+  if(error){radioNotice('Einsatz konnte nicht abgeschlossen werden: '+error.message);return;}
+  const item=incidents.find(x=>Number(x.id)===Number(id)); if(item)item.status='Abgeschlossen';
+  render();
+}
+async function vxRefreshDispatcher(){
+  const {data,error}=await vxDb.from('vx_dispatcher').select('*').eq('id','main').maybeSingle();
+  if(error){console.error(error);return;}
+  const busy=data && data.expires_at && new Date(data.expires_at).getTime()>Date.now();
+  vxDispatcherOwned=!!(busy && data.session_id===vxSessionId);
+  const state=$('#dispatcherState');
+  if(state) state.textContent=busy?(vxDispatcherOwned?'Du hast die Leitstelle übernommen.':'Leitstelle ist bereits besetzt.'):'Leitstellenplatz ist frei.';
+  const claim=$('#dispatcherClaim'); if(claim) claim.disabled=!!(busy&&!vxDispatcherOwned);
+  const release=$('#dispatcherRelease'); if(release) release.disabled=!vxDispatcherOwned;
+}
+function isDispatcher(){return vxDispatcherOwned;}
+async function claimDispatcher(){
+  const {data,error}=await vxDb.rpc('vx_claim_dispatcher',{p_session_id:vxSessionId,p_display_name:'VEXORA RP Leitstelle'});
+  if(error){radioNotice('Leitstellenplatz konnte nicht übernommen werden: '+error.message);return;}
+  vxDispatcherOwned=!!data;
+  await vxRefreshDispatcher();
+  radioNotice(vxDispatcherOwned?'Leitstellenplatz übernommen.':'Eine andere Person hat die Leitstelle bereits.');
+}
+async function releaseDispatcher(){
+  const {data,error}=await vxDb.rpc('vx_release_dispatcher',{p_session_id:vxSessionId});
+  if(error){radioNotice('Freigabe fehlgeschlagen: '+error.message);return;}
+  vxDispatcherOwned=false;
+  await vxRefreshDispatcher();
+  radioNotice(data?'Leitstellenplatz freigegeben.':'Du hast den Leitstellenplatz nicht.');
+}
+async function sendDispatch(){
+  if(!isDispatcher()){radioNotice('Nur die besetzte Leitstelle darf Melder alarmieren.');return;}
+  const message=prompt('Alarmtext für alle VEXORA-RP-Melder:','Einsatz für alle Einheiten');
+  if(!message||!message.trim())return;
+  const number='AL-'+Date.now().toString().slice(-6);
+  const {error}=await vxDb.from('vx_radio_messages').insert({kind:'dispatch',payload:{message:message.trim(),number}});
+  if(error){radioNotice('Alarmierung fehlgeschlagen: '+error.message);return;}
+  radioNotice('Alarmierung an alle verbundenen RP-Geräte gesendet · '+number);
+}
+$('#incidentForm').onsubmit=async e=>{
+  e.preventDefault();
+  const d=Object.fromEntries(new FormData(e.target));
+  const item={...d,number:nextIncidentNumber(),status:'Offen'};
+  const {data,error}=await vxDb.from('vx_incidents').insert(item).select().single();
+  if(error){radioNotice('Einsatz konnte nicht gespeichert werden: '+error.message);return;}
+  if(item.caller)localStorage.setItem('vx_caller_name',item.caller);
+  vxUpsertIncident(data); e.target.reset(); closeModal('incidentModal'); render();
+  if(item.type.toLowerCase().includes('notfall')){
+    await vxDb.from('vx_radio_messages').insert({kind:'notfall',payload:{item:vxIncidentFromRow(data)}});
+  }
+};
+$('#unitForm').onsubmit=async e=>{
+  e.preventDefault();
+  const d=Object.fromEntries(new FormData(e.target));
+  const {data,error}=await vxDb.from('vx_units').upsert(d,{onConflict:'name'}).select().single();
+  if(error){radioNotice('Einheit konnte nicht gespeichert werden: '+error.message);return;}
+  vxUpsertUnit(data); e.target.reset(); closeModal('unitModal'); render();
+};
+async function selectRadioStatus(code){
+  if(!isDispatcher()){radioNotice('Nur die besetzte Leitstelle kann den Leitstellenstatus ändern.');return;}
+  const names={'1':'Frei (über Funk)','2':'Einsatzbereit über Funk','3':'Einsatz übernommen','4':'Am Einsatzort','5':'Sprechwunsch','6':'Nicht verfügbar'};
+  if(!names[code])return;
+  if(units[0]) await changeStatus(0,code+' – '+names[code]);
+  currentRadioStatus=code;
+  $('#lcdCode').textContent='ST '+code;
+  $('#lcdStatus').textContent=names[code];
+  $('#lcdBottom').textContent=code==='5'?'SPRECHWUNSCH AKTIV':'KANAL FREI';
+  document.querySelectorAll('.status-key').forEach(b=>b.classList.toggle('active',b.dataset.code===code));
+}
+const vxOriginalTabs=document.querySelectorAll('[data-radio-tab]');
+vxOriginalTabs.forEach(b=>{
+  if(b.dataset.radioTab==='people') b.addEventListener('click',()=>{
+    const panel=$('#radioTabPanel');
+    const count=vxPresenceChannel?Object.keys(vxPresenceChannel.presenceState()).length:1;
+    panel.innerHTML='<div class="operator-card"><div class="operator-title">IM FUNK</div><div class="operator-name">'+count+' verbundene RP-Geräte</div><div class="operator-note">Die Anzeige zählt geöffnete und verbundene Geräte, nicht bestätigte Personen.</div></div>';
+  });
+});
+setInterval(async()=>{
+  if(vxDispatcherOwned){
+    const {data,error}=await vxDb.rpc('vx_renew_dispatcher',{p_session_id:vxSessionId});
+    if(error||!data){vxDispatcherOwned=false;radioNotice('Leitstellenplatz ist abgelaufen oder wurde übernommen.');}
+  }
+  vxRefreshDispatcher();
+},10000);
+window.addEventListener('beforeunload',()=>{
+  if(vxDispatcherOwned) vxDb.rpc('vx_release_dispatcher',{p_session_id:vxSessionId});
+  if(vxPresenceChannel) vxDb.removeChannel(vxPresenceChannel);
+});
+const vxPttHint=$('#radioStatus');
+if(vxPttHint) vxPttHint.textContent='Sprechtaste: derzeit nur Bedien-Simulation, keine Sprachübertragung.';
+vxLoad();
+</script>
 </body></html>
