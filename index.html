@@ -77,6 +77,15 @@ input,select{width:100%;background:#0b1729;border:1px solid var(--line);border-r
 .rp-emergency{width:100%;padding:17px;border-radius:17px;border:1px solid #7d3035;background:#2b171a;color:#ff8188;font-weight:800;font-size:16px}.channel-list h2{margin-bottom:15px}.channel-row{display:flex;gap:12px;align-items:center;padding:15px 5px;border-top:1px solid #302d30}.channel-row strong{flex:1}.channel-tag{background:#173b2d;color:#8ce5b7;padding:4px 9px;border-radius:7px;font-size:11px}.radio-disclaimer{color:#8c8588;font-size:11px;text-align:center;line-height:1.5;padding:5px 20px 18px}
 @media(max-width:600px){.radio-app{margin:-17px -12px;min-height:calc(100vh - 62px)}.radio-appbar{height:70px}.radio-content{padding:18px 14px 30px}.channel-card,.channel-list{padding:16px;border-radius:23px}.channel-head{gap:7px}.channel-head strong{font-size:17px}.lcd-title{font-size:26px}.talk-button{min-height:84px}.status-key{height:66px}.radio-tabs button span{font-size:11px}}
 </style>
+<style>
+#vxAlertCenter{display:grid;gap:10px;margin:12px 0}
+.vx-alert{border:1px solid #d97706;background:rgba(217,119,6,.10);border-radius:14px;padding:14px;color:inherit}
+.vx-alert.dispatch{border-color:#2563eb;background:rgba(37,99,235,.09)}
+.vx-alert strong{display:block;margin-bottom:5px}
+.vx-alert small{display:block;opacity:.78;margin:5px 0 10px}
+.vx-alert button{margin-top:8px}
+.vx-alert .vx-state{font-weight:700}
+</style>
 </head>
 <body>
 <header><div><div class="brand">VEXORA <span>LEITSTELLE</span></div><div class="sub">VEXORA RP · FUNKLEITSTELLE</div></div><span class="pill">FUNKDIENST</span></header>
@@ -110,6 +119,7 @@ input,select{width:100%;background:#0b1729;border:1px solid var(--line);border-r
     <button class="rp-emergency" type="button" onclick="openEmergency()">⚠ Notfall</button>
    </div>
   </div>
+  <div id="vxAlertCenter" aria-live="polite"></div>
   <div class="channel-list"><h2>Funkkanäle</h2><div class="channel-row"><span>▥</span><strong>Zentrale</strong><span class="connected">Verbunden</span><span class="channel-tag">RP</span></div><div class="channel-row"><span>▥</span><strong>Polizei</strong><span class="muted">Nicht verbunden</span></div><div class="channel-row"><span>▥</span><strong>Feuerwehr</strong><span class="muted">Nicht verbunden</span></div><div class="channel-row"><span>▥</span><strong>Rettungsdienst</strong><span class="muted">Nicht verbunden</span></div></div>
   <div class="radio-disclaimer">VEXORA RP · Funkdienst für den Roblox-Rollenspielserver.</div>
  </div>
@@ -177,6 +187,7 @@ let vxDbChannel = null;
 let vxPresenceChannel = null;
 let vxConnectionReady = false;
 const vxAlertedIds = new Set();
+let vxPendingDispatches = [];
 
 function vxSetConnection(ok, message) {
   vxConnectionReady = !!ok;
@@ -189,7 +200,7 @@ function vxSetConnection(ok, message) {
   if (state && message) state.textContent = message;
 }
 function vxIncidentFromRow(r) {
-  return {id:Number(r.id),number:r.number,type:r.type,caller:r.caller,address:r.address,department:r.department,priority:r.priority,created:new Date(r.created_at).toLocaleString('de-DE'),status:r.status};
+  return {id:Number(r.id),number:r.number,type:r.type,caller:r.caller,address:r.address,department:r.department,priority:r.priority,created:new Date(r.created_at).toLocaleString('de-DE'),status:r.status,accepted_at:r.accepted_at||null,accepted_by:r.accepted_by||null};
 }
 function vxUpsertIncident(row) {
   const item = vxIncidentFromRow(row);
@@ -211,11 +222,41 @@ function render(){
   $('#statUnits').textContent = units.length;
   $('#statFree').textContent = free;
   $('#statBusy').textContent = busy;
-  const rows = open.map(x => '<tr><td>'+esc(x.number||('#'+x.id))+'</td><td>'+esc(x.type)+'</td><td>'+esc(x.caller||'—')+'</td><td>'+esc(x.address)+'</td><td>'+esc(x.department)+'</td><td><span class="pill">'+esc(x.priority)+'</span></td><td>'+esc(x.created||'')+'</td><td><button class="secondary" onclick="removeIncident('+x.id+')">Abschließen</button></td></tr>').join('');
+  const rows = open.map(x => '<tr><td>'+esc(x.number||('#'+x.id))+'</td><td>'+esc(x.type)+'</td><td>'+esc(x.caller||'—')+'</td><td>'+esc(x.address)+'</td><td>'+esc(x.department)+'</td><td><span class="pill">'+esc(x.priority)+'</span></td><td>'+esc(x.created||'')+'</td><td>'+(x.accepted_at?'<span class="vx-state">Angenommen</span>':'<span class="vx-state">Wartet auf Annahme</span>')+'<br><button class="secondary" onclick="removeIncident('+x.id+')">Abschließen</button></td></tr>').join('');
   const table = rows ? '<table><thead><tr><th>Nr.</th><th>Stichwort</th><th>Melder</th><th>Ort</th><th>Abteilung</th><th>Priorität</th><th>Erstellt</th><th>Aktion</th></tr></thead><tbody>'+rows+'</tbody></table>' : '<div class="empty">Noch keine offenen Einsätze vorhanden.</div>';
   $('#incidentTable').innerHTML = table;
   $('#recentIncidents').innerHTML = table;
   $('#unitList').innerHTML = units.map((u,i) => '<div class="unit"><strong>'+esc(u.name)+'</strong><div class="muted">'+esc(u.department)+'</div><label>Status ändern</label><select aria-label="Status von '+esc(u.name)+'" onchange="changeStatus('+i+',this.value)">'+['1 – Frei (über Funk)','2 – Einsatzbereit','3 – Einsatz übernommen','4 – Am Einsatzort','5 – Sprechwunsch','6 – Nicht verfügbar'].map(s=>'<option '+(u.status===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>').join('') || '<div class="empty">Noch keine Einheiten.</div>';
+  vxRenderAlerts();
+}
+function vxRenderAlerts(){
+  const host=$('#vxAlertCenter'); if(!host)return;
+  const pending=incidents.filter(x=>x.status!=='Abgeschlossen' && !x.accepted_at && (x.priority==='SOFORT'||x.type==='PANIKALARM'));
+  const dispatches=vxPendingDispatches.filter(x=>!x.seen_at);
+  let html='';
+  pending.forEach(x=>{
+    html+='<div class="vx-alert"><strong>⚠ NOTFALL · '+esc(x.number||('Einsatz '+x.id))+'</strong><div>Melder: '+esc(x.caller||'Unbekannt')+' · '+esc(x.department||'')+'</div><small>'+esc(x.address||'Kein Ort angegeben')+' · '+esc(x.created||'')+'</small>';
+    html+=isDispatcher()?'<button class="primary" onclick="vxAcceptIncident('+x.id+')">✓ Melder angenommen</button>':'<span class="vx-state">Wartet auf Annahme durch die Leitstelle</span>';
+    html+='</div>';
+  });
+  dispatches.forEach(x=>{
+    const p=x.payload||{};
+    html+='<div class="vx-alert dispatch"><strong>📢 ALARM VON LEITSTELLE · '+esc(p.number||('AL-'+x.id))+'</strong><div>'+esc(p.message||'Neue Alarmierung')+'</div><small>Gesendet: '+esc(new Date(x.created_at).toLocaleString('de-DE'))+'</small><button class="primary" onclick="vxMarkDispatchSeen('+x.id+')">✓ Als gesehen markieren</button></div>';
+  });
+  host.innerHTML=html;
+}
+async function vxAcceptIncident(id){
+  if(!isDispatcher()){radioNotice('Nur die Leitstelle kann einen Melder annehmen.');return;}
+  const {data,error}=await vxDb.from('vx_incidents').update({accepted_at:new Date().toISOString(),accepted_by:'VEXORA RP Leitstelle'}).eq('id',id).is('accepted_at',null).select().maybeSingle();
+  if(error){radioNotice('Annahme fehlgeschlagen: '+error.message);return;}
+  if(!data){radioNotice('Dieser Melder wurde bereits angenommen.');return;}
+  vxUpsertIncident(data);render();radioNotice('Melder '+data.number+' wurde angenommen.');
+}
+async function vxMarkDispatchSeen(id){
+  const {data,error}=await vxDb.from('vx_radio_messages').update({seen_at:new Date().toISOString(),seen_by:'RP-Teilnehmer'}).eq('id',id).is('seen_at',null).select().maybeSingle();
+  if(error){radioNotice('Bestätigung fehlgeschlagen: '+error.message);return;}
+  if(data)vxPendingDispatches=vxPendingDispatches.filter(x=>Number(x.id)!==Number(id));
+  render();radioNotice('Leitstellenalarm als gesehen markiert.');
 }
 function vxAlertOnce(id,item){ if(vxAlertedIds.has(String(id))) return; vxAlertedIds.add(String(id)); playDispatchAlarm(); showDispatchAlert(item); }
 function vxShowMessage(row){
@@ -239,14 +280,17 @@ function vxShowMessage(row){
 }
 async function vxLoad(){
   try {
-    const [ir, ur] = await Promise.all([
+    const [ir, ur, mr] = await Promise.all([
       vxDb.from('vx_incidents').select('*').order('created_at',{ascending:false}).limit(200),
-      vxDb.from('vx_units').select('*').order('name')
+      vxDb.from('vx_units').select('*').order('name'),
+      vxDb.from('vx_radio_messages').select('*').eq('kind','dispatch').is('seen_at',null).order('created_at',{ascending:false}).limit(100)
     ]);
     if(ir.error) throw ir.error;
     if(ur.error) throw ur.error;
+    if(mr.error) throw mr.error;
     incidents = (ir.data||[]).map(vxIncidentFromRow);
     units = (ur.data||[]).map(vxUnitFromRow);
+    vxPendingDispatches = mr.data||[];
     if(!units.length){
       const defaults = [
         {name:'POL-1/1',department:'Polizei',status:'2 – Einsatzbereit'},
@@ -286,7 +330,7 @@ function vxSubscribe(){
       else vxUpsertUnit(payload.new);
       render();
     })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'vx_radio_messages'},payload=>vxShowMessage(payload.new))
+    .on('postgres_changes',{event:'*',schema:'public',table:'vx_radio_messages'},payload=>{ if(payload.eventType==='INSERT'){ if(payload.new.kind==='dispatch'&&!payload.new.seen_at){vxPendingDispatches.unshift(payload.new);vxShowMessage(payload.new);} } else if(payload.eventType==='UPDATE'){vxPendingDispatches=vxPendingDispatches.filter(x=>Number(x.id)!==Number(payload.new.id)||!payload.new.seen_at);} render(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'vx_dispatcher'},()=>vxRefreshDispatcher())
     .subscribe(status=>{
       if(status==='SUBSCRIBED') vxSetConnection(true,'Echtzeit-Funk ist verbunden.');
@@ -309,7 +353,7 @@ async function openEmergency(){
   const number=nextIncidentNumber();
   const item={number,type:'PANIKALARM',caller,department:unit.department||'Unbekannt',priority:'SOFORT',address:'Standort nicht übermittelt',status:'Offen'};
   const {data,error}=await vxDb.from('vx_incidents').insert(item).select().single();
-  if(error){radioNotice('Notfall konnte nicht gesendet werden: '+error.message);return;}
+  if(error){console.error('VEXORA Notfall-Insert:',error);radioNotice('Notfall konnte nicht gesendet werden: '+(error.message||'Datenbankfehler'));return;}
   const mapped=vxIncidentFromRow(data);
   vxUpsertIncident(data);
   render();
@@ -339,6 +383,7 @@ async function vxRefreshDispatcher(){
   if(state) state.textContent=busy?(vxDispatcherOwned?'Du hast die Leitstelle übernommen.':'Leitstelle ist bereits besetzt.'):'Leitstellenplatz ist frei.';
   const claim=$('#dispatcherClaim'); if(claim) claim.disabled=!!(busy&&!vxDispatcherOwned);
   const release=$('#dispatcherRelease'); if(release) release.disabled=!vxDispatcherOwned;
+  vxRenderAlerts();
 }
 function isDispatcher(){return vxDispatcherOwned;}
 async function claimDispatcher(){
@@ -360,8 +405,9 @@ async function sendDispatch(){
   const message=prompt('Alarmtext für alle VEXORA-RP-Melder:','Einsatz für alle Einheiten');
   if(!message||!message.trim())return;
   const number='AL-'+Date.now().toString().slice(-6);
-  const {error}=await vxDb.from('vx_radio_messages').insert({kind:'dispatch',payload:{message:message.trim(),number}});
+  const {data,error}=await vxDb.from('vx_radio_messages').insert({kind:'dispatch',payload:{message:message.trim(),number}}).select().single();
   if(error){radioNotice('Alarmierung fehlgeschlagen: '+error.message);return;}
+  if(data){vxPendingDispatches.unshift(data);render();}
   radioNotice('Alarmierung an alle verbundenen RP-Geräte gesendet · '+number);
 }
 $('#incidentForm').onsubmit=async e=>{
