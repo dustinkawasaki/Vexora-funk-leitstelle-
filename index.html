@@ -176,6 +176,7 @@ let vxDispatcherOwned = false;
 let vxDbChannel = null;
 let vxPresenceChannel = null;
 let vxConnectionReady = false;
+const vxAlertedIds = new Set();
 
 function vxSetConnection(ok, message) {
   vxConnectionReady = !!ok;
@@ -216,6 +217,7 @@ function render(){
   $('#recentIncidents').innerHTML = table;
   $('#unitList').innerHTML = units.map((u,i) => '<div class="unit"><strong>'+esc(u.name)+'</strong><div class="muted">'+esc(u.department)+'</div><label>Status ändern</label><select aria-label="Status von '+esc(u.name)+'" onchange="changeStatus('+i+',this.value)">'+['1 – Frei (über Funk)','2 – Einsatzbereit','3 – Einsatz übernommen','4 – Am Einsatzort','5 – Sprechwunsch','6 – Nicht verfügbar'].map(s=>'<option '+(u.status===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>').join('') || '<div class="empty">Noch keine Einheiten.</div>';
 }
+function vxAlertOnce(id,item){ if(vxAlertedIds.has(String(id))) return; vxAlertedIds.add(String(id)); playDispatchAlarm(); showDispatchAlert(item); }
 function vxShowMessage(row){
   const p = row.payload || {};
   if(row.kind === 'notfall' && p.item){
@@ -274,8 +276,7 @@ function vxSubscribe(){
         const exists=incidents.some(x=>Number(x.id)===Number(payload.new.id));
         vxUpsertIncident(payload.new);
         if(payload.eventType==='INSERT' && !exists && (payload.new.priority==='SOFORT' || payload.new.type==='PANIKALARM')) {
-          playDispatchAlarm();
-          showDispatchAlert(vxIncidentFromRow(payload.new));
+          vxAlertOnce(payload.new.id,vxIncidentFromRow(payload.new));
         }
       }
       render();
@@ -303,7 +304,7 @@ function vxSubscribe(){
 function nextIncidentNumber(){return 'VX-'+new Date().getFullYear()+'-'+Date.now().toString().slice(-6)+'-'+Math.random().toString(36).slice(2,4).toUpperCase();}
 async function openEmergency(){
   if(isDispatcher()){radioNotice('Die Leitstelle kann keinen eigenen Melder-Notfall auslösen.');return;}
-  const caller=localStorage.getItem('vx_dienstnummer') || (units[0]&&units[0].name) || 'OHNE-DIENSTNUMMER';
+  const caller=localStorage.getItem('vx_dienstnummer') || 'RP-TEILNEHMER';
   const unit=units.find(u=>u.name===caller)||units[0]||{};
   const number=nextIncidentNumber();
   const item={number,type:'PANIKALARM',caller,department:unit.department||'Unbekannt',priority:'SOFORT',address:'Standort nicht übermittelt',status:'Offen'};
@@ -311,9 +312,8 @@ async function openEmergency(){
   if(error){radioNotice('Notfall konnte nicht gesendet werden: '+error.message);return;}
   const mapped=vxIncidentFromRow(data);
   vxUpsertIncident(data);
-  await vxDb.from('vx_radio_messages').insert({kind:'notfall',payload:{item:mapped}});
-  playDispatchAlarm();
   render();
+  vxAlertOnce(data.id,mapped);
   radioNotice('NOTFALL GESENDET · '+number+' · '+caller);
 }
 async function changeStatus(i,value){
