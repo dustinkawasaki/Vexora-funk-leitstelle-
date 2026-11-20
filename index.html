@@ -330,7 +330,7 @@ function vxSubscribe(){
       else vxUpsertUnit(payload.new);
       render();
     })
-    .on('postgres_changes',{event:'*',schema:'public',table:'vx_radio_messages'},payload=>{ if(payload.eventType==='INSERT'){ if(payload.new.kind==='dispatch'&&!payload.new.seen_at){vxPendingDispatches.unshift(payload.new);vxShowMessage(payload.new);} } else if(payload.eventType==='UPDATE'){vxPendingDispatches=vxPendingDispatches.filter(x=>Number(x.id)!==Number(payload.new.id)||!payload.new.seen_at);} render(); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'vx_radio_messages'},payload=>{ if(payload.eventType==='INSERT'){ if(payload.new.kind==='dispatch'&&!payload.new.seen_at){if(!vxPendingDispatches.some(x=>Number(x.id)===Number(payload.new.id))){vxPendingDispatches.unshift(payload.new);vxShowMessage(payload.new);}} } else if(payload.eventType==='UPDATE'){vxPendingDispatches=vxPendingDispatches.filter(x=>Number(x.id)!==Number(payload.new.id)||!payload.new.seen_at);} render(); })
     .on('postgres_changes',{event:'*',schema:'public',table:'vx_dispatcher'},()=>vxRefreshDispatcher())
     .subscribe(status=>{
       if(status==='SUBSCRIBED') vxSetConnection(true,'Echtzeit-Funk ist verbunden.');
@@ -348,7 +348,7 @@ function vxSubscribe(){
 function nextIncidentNumber(){return 'VX-'+new Date().getFullYear()+'-'+Date.now().toString().slice(-6)+'-'+Math.random().toString(36).slice(2,4).toUpperCase();}
 async function openEmergency(){
   if(isDispatcher()){radioNotice('Die Leitstelle kann keinen eigenen Melder-Notfall auslösen.');return;}
-  const caller=localStorage.getItem('vx_dienstnummer') || 'RP-TEILNEHMER';
+  const caller=localStorage.getItem('vx_dienstnummer') || (units[0]&&units[0].name) || 'RP-TEILNEHMER';
   const unit=units.find(u=>u.name===caller)||units[0]||{};
   const number=nextIncidentNumber();
   const item={number,type:'PANIKALARM',caller,department:unit.department||'Unbekannt',priority:'SOFORT',address:'Standort nicht übermittelt',status:'Offen'};
@@ -407,7 +407,7 @@ async function sendDispatch(){
   const number='AL-'+Date.now().toString().slice(-6);
   const {data,error}=await vxDb.from('vx_radio_messages').insert({kind:'dispatch',payload:{message:message.trim(),number}}).select().single();
   if(error){radioNotice('Alarmierung fehlgeschlagen: '+error.message);return;}
-  if(data){vxPendingDispatches.unshift(data);render();}
+  if(data){if(!vxPendingDispatches.some(x=>Number(x.id)===Number(data.id)))vxPendingDispatches.unshift(data);render();}
   radioNotice('Alarmierung an alle verbundenen RP-Geräte gesendet · '+number);
 }
 $('#incidentForm').onsubmit=async e=>{
